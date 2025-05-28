@@ -1,0 +1,20 @@
+[project]
+name = "satcomsim-federated"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Ihor Savenko",email = "csigorek@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "vpython (>=7.6.5,<8.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "satcomsim_federated", from = "src"}]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
