@@ -1,4 +1,3 @@
-# simulation_core.py
 import asyncio
 import json
 import time
@@ -204,7 +203,9 @@ class SimulationCore:
             print(
                 f"[Core] Failed to connect/add satellite {sat_id} dynamically. Reason: {e}"
             )
-            async with self.lock:  # Ensure cleanup if connection failed after config_map was populated (though unlikely with current flow)
+            async with (
+                self.lock
+            ):  # Ensure cleanup if connection failed after config_map was populated (though unlikely with current flow)
                 self.satellite_configs_map.pop(sat_id, None)
             return False
 

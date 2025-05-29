@@ -155,10 +155,7 @@ Footer {
  }
 
  #placeholder_pane {
-     /* Bottom pane in the right column - make this smaller */
      height: 0.2fr;
      /* Give placeholder less space (e.g., 25% if GS interaction is 3fr) */
      min-height: 5;
-     /* Ensure it has some minimum visible height */
-     /* It will also inherit from .right_pane_section if that class is still applied in compose */
  }

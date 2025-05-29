@@ -1,7 +1,7 @@
 # gs_interaction_client.py
 import socket
-import sys
 import argparse
+import time
 
 DEFAULT_GS_HOST = "localhost"
 
@@ -140,8 +140,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    # Import time here if not already imported, for the Ctrl+C sleep
-    import time
-
     main(args.host, args.port)

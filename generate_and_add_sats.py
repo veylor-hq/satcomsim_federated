@@ -16,7 +16,7 @@ BASE_SATELLITE_PORT = 65450
 SATELLITE_HOST = "localhost"
 PYTHON_EXECUTABLE = "python"  # or "python3" or specific path if needed
 
-# Earth and Orbit Parameters (same as before)
+# Earth and Orbit Parameters
 MU_EARTH_KM3_S2 = 398600.4418
 EARTH_RADIUS_KM = 6371.0
 MIN_ALTITUDE_KM = 700.0
@@ -57,7 +57,7 @@ def cleanup_launched_processes():
 atexit.register(cleanup_launched_processes)
 
 
-# --- Helper Functions (generate_satellite_configs and send_command_to_core are mostly the same) ---
+# --- Helper Functions
 def generate_satellite_configs(num_sats, base_port):
     configs = []
     print(f"[Orchestrator] Generating {num_sats} satellite configurations...")
@@ -195,9 +195,10 @@ if __name__ == "__main__":
             )
             print(f"              Logs: {stdout_log_path}, {stderr_log_path}")
 
-            with open(stdout_log_path, "wb") as f_out, open(
-                stderr_log_path, "wb"
-            ) as f_err:
+            with (
+                open(stdout_log_path, "wb") as f_out,
+                open(stderr_log_path, "wb") as f_err,
+            ):
                 process = subprocess.Popen(command_list, stdout=f_out, stderr=f_err)
 
             launched_satellite_processes.append(

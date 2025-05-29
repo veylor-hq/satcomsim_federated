@@ -1,4 +1,3 @@
-# tui_launcher.py
 import asyncio
 import json
 import os
@@ -7,7 +6,6 @@ import sys
 import time
 import random
 import numpy as np
-import subprocess  # Fallback for process termination if needed, though asyncio.subprocess is primary
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, ScrollableContainer

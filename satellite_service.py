@@ -1,7 +1,6 @@
-# satellite_service.py
 import asyncio
 import json
-import argparse  # For command line arguments
+import argparse
 
 
 class Satellite:
@@ -36,15 +35,6 @@ class Satellite:
                     try:
                         # Attempt to find a complete JSON message
                         # A simple way is to find the first '{' and matching '}'
-                        # More robust: look for newline or other delimiters if your protocol defines one,
-                        # or use a length-prefix for messages.
-                        # For now, we'll assume one JSON object or a stream of them.
-                        # This basic split assumes JSON objects are not nested in a way that confuses find('}')
-
-                        # Let's try to decode messages separated by some delimiter or assume one message per packet for now
-                        # For robust streaming JSON, libraries like `ijson` or a custom framing protocol would be better.
-                        # This example will try to process JSON objects as they arrive.
-                        # If multiple JSONs are sent in one packet without clear delimiters, this needs more robust parsing.
 
                         # Simplistic approach: try to decode the whole buffer.
                         # If it fails, wait for more data. If it succeeds, clear buffer or identify consumed part.
@@ -140,16 +130,6 @@ class Satellite:
                                 json_str.encode()
                             )  # Return validated string and its byte length
                         except json.JSONDecodeError:
-                            # Invalid JSON, maybe part of a larger message or corrupt data.
-                            # Continue searching or implement error handling.
-                            # For this example, we'll assume it's not a valid delimiter point
-                            # and continue searching by resetting start_index if we want to find NEXT valid JSON.
-                            # However, if a non-valid JSON is found, it might be better to flag error.
-                            # Resetting state to find next valid JSON:
-                            # open_braces = 0
-                            # start_index = -1
-                            # For simplicity, we'll just let the outer loop handle JSONDecodeError for now.
-                            # This function aims to find a *structurally* complete object.
                             pass  # Let the json.loads in handle_client do the main validation. This is just for finding boundaries.
 
         return None, 0  # No complete message found
@@ -184,11 +164,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--port", type=int, default=65432, help="Port to listen on")
     args = parser.parse_args()
-
-    # This instantiation should only happen ONCE.
-    # The repeated "Initializing..." message in your output is strange.
-    # Please ensure this line (and the print within Satellite.__init__)
-    # is not accidentally inside a loop in your local copy of the script.
     satellite = Satellite(satellite_id=args.id, host=args.host, port=args.port)
 
     try:

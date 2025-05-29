@@ -46,7 +46,7 @@ show_all_predictions_checkbox_state = False
 previous_sim_time_for_earth_rotation = None
 
 
-# --- Networking Thread (same as your last working version) ---
+# --- Networking Thread
 def network_reception_thread_func(host, port):
     global latest_visualization_data
     connection_attempts = 0
@@ -74,9 +74,7 @@ def network_reception_thread_func(host, port):
                         continue
                     try:
                         message = json.loads(message_str)
-                        if (
-                            message.get("type") == "VIS_UPDATE"
-                        ):  # Expecting groundstations here too now
+                        if message.get("type") == "VIS_UPDATE":
                             with data_lock:
                                 latest_visualization_data = message
                     except json.JSONDecodeError as jde:
@@ -110,7 +108,7 @@ def network_reception_thread_func(host, port):
         time.sleep(5)
 
 
-# --- Orbit Propagation Functions (same) ---
+# --- Orbit Propagation Functions
 def vis_equations_of_motion(t_sec, state_vector_km_kms_np):
     pos_km_np = state_vector_km_kms_np[0:3]
     vel_km_s_np = state_vector_km_kms_np[3:6]
@@ -148,7 +146,7 @@ def predict_orbit(current_pos_km_np, current_vel_km_s_np, duration_sec, time_ste
     return points_km_list
 
 
-# --- VPython Main Setup (same) ---
+# --- VPython Main Setup
 print("[VisPy] Initializing VPython scene...")
 scene = canvas(title="SatComSim Real-Time Visualizer", width=1200, height=900)
 scene.forward = vector(0.1, -0.5, -1)
@@ -246,7 +244,7 @@ checkbox_all_preds_vpy = checkbox(
 scene.append_to_caption("\n")
 
 
-# --- Click Handling (same) ---
+# --- Click Handling
 def handle_click(evt):
     global selected_satellite_id
     picked_obj = scene.mouse.pick
@@ -279,7 +277,7 @@ def handle_click(evt):
 scene.bind("click", handle_click)
 
 
-# --- Display Update Functions (update_satellite_details_display is same) ---
+# --- Display Update Functions
 def update_satellite_details_display():
     global sat_detail_label_vpy
     display_text = "Click on a satellite to see details."
@@ -362,7 +360,7 @@ def update_predicted_orbits_display():  # Uses user's confirmed prediction param
                 pred_orbit_curve.visible = False
 
 
-# --- Start Networking Thread (same) ---
+# --- Start Networking Thread
 network_thread = threading.Thread(
     target=network_reception_thread_func,
     args=(CORE_VIS_HOST, CORE_VIS_PORT),
@@ -450,7 +448,7 @@ while True:
                 entry["pos_actual_km"] = actual_pos
                 entry["vel_actual_km_s"] = actual_vel
 
-            # Groundstations (NEW)
+            # Groundstations
             for gs_info in current_data_from_core.get("groundstations", []):
                 gs_id = gs_info["id"]
                 active_gs_ids.add(gs_id)
