@@ -1,0 +1,164 @@
+/* tui_layout.css */
+Screen {
+    layout: vertical;
+    overflow-y: hidden;
+    /* Prevent screen itself from scrolling */
+    background: $surface;
+    color: $text;
+}
+
+#main_area {
+    layout: horizontal;
+    height: 1fr;
+    /* Fill available space below header */
+    background: $panel;
+    padding: 1;
+    border: tall $background-darken-2;
+}
+
+.column {
+    /* Default for columns not specifically sized */
+    width: 1fr;
+    height: 100%;
+    padding: 0 1;
+    margin: 0 1;
+}
+
+#col_primary_services {
+    /* Column for Core, GS, Vis logs */
+    width: 3fr;
+    /* Give more relative width */
+}
+
+#sat_logs_column {
+    /* Scrollable container for all satellite logs */
+    width: 4fr;
+    /* Give satellite logs plenty of space */
+    height: 100%;
+    border: round $primary;
+    padding: 1;
+    overflow-y: auto;
+    /* This container will scroll */
+}
+
+#col_interaction {
+    /* Column for GS interaction */
+    width: 3fr;
+}
+
+
+Label {
+    padding: 1 0 0 0;
+    /* Padding top */
+    width: 100%;
+    text-align: center;
+    text-style: bold underline;
+    color: $text-muted;
+    margin-bottom: 1;
+    /* Space below label */
+}
+
+/* Default Log style, can be overridden by more specific IDs/classes */
+Log {
+    height: 1fr;
+    /* Default to fill space; overridden by specific log heights below */
+    border: round $primary-lighten-2;
+    margin-top: 0;
+    /* Remove top margin if Label provides it */
+    padding: 1;
+    background: $panel-darken-1;
+}
+
+/* Individual log areas within columns for better height management */
+#core_log,
+#gs_log,
+#vis_log {
+    height: 1fr;
+    /* Share space in their vertical container */
+    min-height: 5;
+    /* Ensure they are at least a few lines high */
+}
+
+.satellite_log_instance {
+    /* Class for dynamically added satellite logs */
+    height: 8;
+    /* Fixed height for each satellite log pane */
+    min-height: 5;
+    margin-bottom: 1;
+    /* Space between stacked satellite logs */
+}
+
+
+#gs_interaction_log {
+    height: 1fr;
+    /* Takes up most space in its vertical container */
+    min-height: 10;
+}
+
+Input {
+    margin: 1 0;
+    border: round $primary;
+}
+
+Input:focus {
+    border: round $secondary;
+}
+
+Button {
+    width: 100%;
+    margin-top: 1;
+    /* Space above button */
+}
+
+Header {
+    background: $primary-darken-2;
+    color: $text;
+    height: auto;
+    /* Shrink to content */
+}
+
+Footer {
+    background: $primary-darken-2;
+    color: $text;
+    height: auto;
+    /* Shrink to content */
+}
+
+#col_right_stack {
+    /* Parent container for the two panes */
+    width: 3fr;
+    layout: vertical;
+}
+
+.right_pane_section {
+    border: round $primary-background;
+    padding: 1;
+    margin-bottom: 1;
+    overflow-y: auto;
+}
+
+.right_pane_section:last-child {
+    margin-bottom: 0;
+}
+
+#info_placeholder_text {
+    /* Style for the text inside the placeholder */
+    padding: 1;
+    text-align: center;
+    color: $text-muted;
+} 
+
+#gs_interaction_log {
+     height: 1fr;
+     /* Fill available space in #gs_interaction_pane */
+     min-height: 5;
+ }
+
+ #placeholder_pane {
+     /* Bottom pane in the right column - make this smaller */
+     height: 0.2fr;
+     /* Give placeholder less space (e.g., 25% if GS interaction is 3fr) */
+     min-height: 5;
+     /* Ensure it has some minimum visible height */
+     /* It will also inherit from .right_pane_section if that class is still applied in compose */
+ }
