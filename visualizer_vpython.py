@@ -158,6 +158,20 @@ earth_display_radius = R_EARTH_KM / POS_SCALE_FACTOR
 earth_sphere = sphere(
     pos=vector(0, 0, 0), radius=earth_display_radius, texture=textures.earth
 )
+
+print(f"[VisPy] Applying initial Earth texture correction.")
+earth_sphere.rotate(
+    angle=np.radians(90),
+    axis=vector(1, 0, 0),
+    origin=vector(0, 0, 0),
+)
+
+earth_sphere.rotate(
+    angle=np.radians(90),
+    axis=vector(0, 0, 1),
+    origin=vector(0, 0, 0),
+)
+
 axis_len = earth_display_radius * 1.5
 arrow(
     pos=vector(0, 0, 0),

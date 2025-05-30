@@ -78,7 +78,7 @@ class SimulationCore:
         self.satellite_configs_map = {
             cfg["id"]: cfg for cfg in initial_satellite_configs
         }
-        self.satellite_connections = {}  # {sat_id: (reader, writer)}
+        self.satellite_connections = {}
         self.satellite_states = {
             cfg["id"]: np.array(cfg["initial_state_vector"])
             for cfg in initial_satellite_configs
@@ -87,40 +87,62 @@ class SimulationCore:
         self.initial_groundstation_configs = initial_groundstation_configs
         self.groundstation_states = (
             {}
-        )  # {gs_id: {"lla": (lat,lon,alt), "ecef": np.array, "eci": np.array}}
+        )  # Will store {gs_id: {"id":..., "lla":..., "ecef":..., "ecef_normal":..., "eci":..., "eci_normal":...}}
 
         self.simulation_time_sec = 0.0
         self.time_step_sec = 1.0
 
         self.control_port = control_port
         self.vis_port = vis_port
-        self.gs_update_port = gs_update_port
+        self.gs_update_port = (
+            gs_update_port  # For groundstation services to connect to the core
+        )
 
         self.control_server_task = None
         self.visualization_server_task = None
-        self.groundstation_update_server_task = None
+        self.groundstation_update_server_task = None  # For the new server
 
         self.visualizer_writers = []
-        self.groundstation_writers = (
-            []
-        )  # For clients (groundstation services) connecting to the core
+        self.groundstation_writers = []  # For connected groundstation service clients
 
         self.lock = asyncio.Lock()
 
-        # Initialize groundstation ECEF positions (fixed) and initial ECI
+        # Initialize groundstation ECEF positions and ECEF geodetic normals
         for gs_config in self.initial_groundstation_configs:
             gs_id = gs_config["id"]
-            lat = gs_config["lat_deg"]
-            lon = gs_config["lon_deg"]
-            alt = gs_config["alt_km"]
-            ecef_pos = lla_to_ecef(lat, lon, alt)
+            lat_deg = gs_config["lat_deg"]
+            lon_deg = gs_config["lon_deg"]
+            alt_km = gs_config["alt_km"]
+
+            ecef_pos = lla_to_ecef(
+                lat_deg, lon_deg, alt_km
+            )  # Assuming lla_to_ecef is defined
+
+            # Calculate ECEF geodetic normal vector (unit vector pointing "up")
+            gs_lat_rad = np.radians(lat_deg)
+            gs_lon_rad = np.radians(lon_deg)
+            ecef_normal_x = np.cos(gs_lat_rad) * np.cos(gs_lon_rad)
+            ecef_normal_y = np.cos(gs_lat_rad) * np.sin(gs_lon_rad)
+            ecef_normal_z = np.sin(gs_lat_rad)
+            ecef_normal = np.array([ecef_normal_x, ecef_normal_y, ecef_normal_z])
+
+            # Initial ECI position and normal (at sim_time_sec = 0.0)
+            # get_earth_rotation_angle_rad and ecef_to_eci should be defined
+            current_earth_rot_angle = get_earth_rotation_angle_rad(
+                self.simulation_time_sec
+            )
+
             self.groundstation_states[gs_id] = {
-                "id": gs_id,  # Store id here as well for convenience
-                "lla": (lat, lon, alt),
-                "ecef": ecef_pos,
+                "id": gs_id,
+                "lla": (lat_deg, lon_deg, alt_km),
+                "ecef": ecef_pos,  # Fixed ECEF position
+                "ecef_normal": ecef_normal,  # Fixed ECEF geodetic normal
                 "eci": ecef_to_eci(
-                    ecef_pos, get_earth_rotation_angle_rad(self.simulation_time_sec)
-                ),  # Initial ECI
+                    ecef_pos, current_earth_rot_angle
+                ),  # Initial ECI position
+                "eci_normal": ecef_to_eci(
+                    ecef_normal, current_earth_rot_angle
+                ),  # Initial ECI normal
             }
 
     async def _connect_one_satellite(self, sat_id, host, port):
@@ -318,141 +340,225 @@ class SimulationCore:
                     pass
 
     def update_groundstation_eci_positions(self):
+        """Updates the ECI position and ECI normal vector of all groundstations."""
         earth_rot_angle_rad = get_earth_rotation_angle_rad(self.simulation_time_sec)
-        for gs_id in self.groundstation_states:  # Iterate keys, modify dict value
-            # ECEF is fixed, so recalculate ECI based on current time
-            self.groundstation_states[gs_id]["eci"] = ecef_to_eci(
-                self.groundstation_states[gs_id]["ecef"], earth_rot_angle_rad
-            )
+        for gs_id in self.groundstation_states:
+            gs_state = self.groundstation_states[gs_id]
+            gs_state["eci"] = ecef_to_eci(gs_state["ecef"], earth_rot_angle_rad)
+
+            if "ecef_normal" in gs_state:
+                gs_state["eci_normal"] = ecef_to_eci(
+                    gs_state["ecef_normal"], earth_rot_angle_rad
+                )
+            else:
+                # Fallback if ecef_normal was somehow not initialized (should not happen)
+                print(
+                    f"[Core] CRITICAL WARNING: ECEF normal vector missing for GS {gs_id} during update."
+                )
+                # As a last resort, use geocentric up for eci_normal if geodetic is missing
+                norm_gs_eci_pos = np.linalg.norm(gs_state["eci"])
+                if norm_gs_eci_pos > 1e-6:
+                    gs_state["eci_normal"] = gs_state["eci"] / norm_gs_eci_pos
+                else:  # GS at Earth center, unlikely
+                    gs_state["eci_normal"] = np.array([0, 0, 1])
 
     def calculate_visibility(
-        self, gs_eci_pos_np, sat_eci_pos_np, min_elevation_deg=5.0
+        self,
+        gs_eci_pos_np,
+        gs_local_up_eci_np,
+        sat_eci_pos_np,
+        min_elevation_deg=5.0,
     ):
+        """
+        Checks if a satellite is visible from a ground station using geodetic up vector.
+        gs_local_up_eci_np: Geodetic normal vector ("up") at the GS, already transformed to ECI.
+        Returns: True if visible, False otherwise.
+        """
+        # Vector from groundstation to satellite in ECI
         vec_gs_to_sat_eci_np = sat_eci_pos_np - gs_eci_pos_np
-        norm_gs_pos = np.linalg.norm(gs_eci_pos_np)
-        if norm_gs_pos < 1e-6:
-            return False
-        local_up_eci_np = gs_eci_pos_np / norm_gs_pos
+        norm_vec_gs_to_sat = np.linalg.norm(
+            vec_gs_to_sat_eci_np
+        )  # Slant range distance
 
-        norm_vec_gs_to_sat = np.linalg.norm(vec_gs_to_sat_eci_np)
-        if norm_vec_gs_to_sat < 1e-6:
-            return True  # Sat at GS
-
-        dot_product = np.dot(vec_gs_to_sat_eci_np, local_up_eci_np)
-
-        # Basic check: if satellite is below the plane passing through Earth's center and normal to GS's position
-        # This is a coarse "is it on the same side of Earth" check.
-        # A more rigorous check involves line-of-sight not intersecting Earth's body.
-        # For simplicity, we use elevation angle based on local up.
-        # If dot_product is negative, it means the satellite is in the hemisphere "below" the groundstation's
-        # local tangent plane (more or less, assuming spherical Earth for this simple 'up' vector).
         if (
-            dot_product <= 0
-        ):  # Effectively, elevation <= 0, not accounting for Earth curvature yet for LOS block
-            # A true LOS check would be more complex here.
-            # This simple check means it's below the mathematical horizon plane at the GS.
-            # For sats very far away, this is fine. For close LEO sats, Earth blockage is key.
-            # For now, if dot product is < threshold_for_min_elevation, it's not visible.
-            # Let's calculate actual elevation:
-            pass  # Fall through to arcsin calculation
+            norm_vec_gs_to_sat < 1e-3
+        ):  # Satellite is effectively at the groundstation location
+            return True
 
+        # Dot product of the (vector_to_satellite) and (local_up_vector_at_GS)
+        # This gives: ||vec_gs_to_sat|| * ||local_up|| * cos(zenith_angle_approx)
+        # Since local_up is a unit vector: ||vec_gs_to_sat|| * cos(zenith_angle_approx)
+        dot_product = np.dot(vec_gs_to_sat_eci_np, gs_local_up_eci_np)
+
+        # If dot_product is non-positive, satellite is at or below the horizon plane
+        # defined by the geodetic normal (local_up).
+        # Add a small tolerance for floating point numbers near zero.
+        if dot_product < (
+            norm_vec_gs_to_sat * np.sin(np.radians(min_elevation_deg - 0.001))
+            if norm_vec_gs_to_sat > 1e-6
+            else -1e-9
+        ):
+            # This condition checks if the projection onto the up-vector is sufficient for min_elevation.
+            # If dot_product is negative, sin_elevation would be negative.
+            return False
+
+        # Calculate sin of elevation: sin(el) = dot_product / slant_range
+        # This is valid because dot_product = ||slant_range|| * ||up_vector|| * cos(zenith_angle)
+        # and up_vector is unit, and elevation = 90 - zenith. So cos(zenith) = sin(elevation).
         sin_elevation = dot_product / norm_vec_gs_to_sat
-        sin_elevation = np.clip(sin_elevation, -1.0, 1.0)  # Clamp for arcsin
+
+        # Clamp due to potential float errors if dot_product slightly > norm_vec_gs_to_sat (should not happen if local_up is unit)
+        sin_elevation = np.clip(sin_elevation, -1.0, 1.0)
+
         elevation_rad = np.arcsin(sin_elevation)
         elevation_deg = np.degrees(elevation_rad)
 
-        # Line of Sight (LOS) check: Does the path intersect Earth?
-        # Simplified LOS: if elevation is positive, does it clear the Earth's bulge?
-        # For a spherical Earth, positive elevation means LOS is clear.
-        # For oblate Earth and low elevation, this can be more complex.
-        # We will assume positive elevation means LOS for this simulation level.
+        is_visible = elevation_deg >= min_elevation_deg
 
-        return elevation_deg >= min_elevation_deg
+        return is_visible
 
     async def broadcast_to_groundstations(self):
+        """
+        Calculates visibility for all groundstation-satellite pairs and
+        sends an update to all connected groundstation services.
+        Assumes self.update_groundstation_eci_positions() has already been called in the current step.
+        """
         active_gs_writers = []
-        async with self.lock:
-            active_gs_writers = list(self.groundstation_writers)
-        if not active_gs_writers:
-            return
+        async with self.lock:  # Protect access to self.groundstation_writers
+            active_gs_writers = list(
+                self.groundstation_writers
+            )  # Get a stable list for iteration
 
-        # Get a consistent snapshot of satellite states for this broadcast
-        current_satellite_data_for_gs = {}
-        async with self.lock:
+        if not active_gs_writers:
+            return  # No connected groundstation services to update
+
+        # Get a consistent snapshot of currently active/connected satellite ECI positions
+        # and their configuration details needed by groundstations (host, port).
+        current_satellite_data_for_gs_check = {}
+        async with (
+            self.lock
+        ):  # Protect access to satellite_states, satellite_connections, satellite_configs_map
             for sat_id, state_vector in self.satellite_states.items():
-                if sat_id in self.satellite_connections:  # Only active satellites
+                if (
+                    sat_id in self.satellite_connections
+                ):  # Only consider active, connected satellites
                     sat_config = self.satellite_configs_map.get(sat_id)
-                    if sat_config:
-                        current_satellite_data_for_gs[sat_id] = {
-                            "eci_pos": state_vector[0:3].tolist(),
+                    if (
+                        sat_config
+                    ):  # Should always exist if satellite is properly managed
+                        current_satellite_data_for_gs_check[sat_id] = {
+                            "eci_pos_np": state_vector[
+                                0:3
+                            ],  # Keep as numpy array for calculations
                             "connect_host": sat_config["host"],
                             "connect_port": sat_config["port"],
                         }
 
-        gs_visibility_updates = []
+        gs_updates_payload_list = (
+            []
+        )  # This will be the list for "groundstations_data" in the final message
+
+        # Iterate through all configured groundstations to calculate their visibility
+        # self.groundstation_states should contain up-to-date "eci" and "eci_normal"
         for gs_id, gs_data_state in self.groundstation_states.items():
-            # gs_data_state already has updated "eci" from update_groundstation_eci_positions()
-            gs_eci_pos_np = gs_data_state["eci"]
-            visible_sats_list = []
-            for sat_id, sat_data in current_satellite_data_for_gs.items():
-                sat_eci_pos_np = np.array(sat_data["eci_pos"])
+            gs_current_eci_pos_np = gs_data_state.get("eci")
+            gs_current_local_up_np = gs_data_state.get(
+                "eci_normal"
+            )  # Geodetic normal in ECI
+
+            if gs_current_eci_pos_np is None or gs_current_local_up_np is None:
+                if (
+                    self.simulation_time_sec % 60 < self.time_step_sec
+                ):  # Log periodically
+                    print(
+                        f"[CoreGS] Warning: Missing ECI data or normal for GS '{gs_id}'. Cannot calculate visibility for it this step."
+                    )
+                continue
+
+            visible_sats_for_this_gs = []
+            for sat_id, sat_data in current_satellite_data_for_gs_check.items():
+                sat_current_eci_pos_np = sat_data[
+                    "eci_pos_np"
+                ]  # This is already a numpy array
+
+                # Get min_elevation_deg from this groundstation's initial config, or use default
+                gs_initial_config = next(
+                    (
+                        cfg
+                        for cfg in self.initial_groundstation_configs
+                        if cfg["id"] == gs_id
+                    ),
+                    None,
+                )
+                min_elev_for_this_gs = (
+                    gs_initial_config.get("min_elevation_deg", 5.0)
+                    if gs_initial_config
+                    else 5.0
+                )
+
                 if self.calculate_visibility(
-                    gs_eci_pos_np, sat_eci_pos_np
-                ):  # Using min_elevation_deg default
-                    visible_sats_list.append(
+                    gs_id,
+                    sat_id,
+                    sat_current_eci_pos_np,
+                    min_elevation_deg=min_elev_for_this_gs,
+                ):
+                    visible_sats_for_this_gs.append(
                         {
                             "id": sat_id,
-                            # "eci_pos": sat_data["eci_pos"], # GS service might not need this if core tells it
+                            # "eci_pos": sat_current_eci_pos_np.tolist(), # Optionally send sat ECI to GS
                             "connect_host": sat_data["connect_host"],
                             "connect_port": sat_data["connect_port"],
                         }
                     )
-            gs_visibility_updates.append(
+
+            gs_updates_payload_list.append(
                 {
                     "id": gs_id,
-                    "eci_pos_km": gs_eci_pos_np.tolist(),  # Send GS its own current ECI
-                    "visible_sats": visible_sats_list,
+                    "eci_pos_km": gs_current_eci_pos_np.tolist(),  # Send GS its own ECI for reference
+                    "visible_sats": visible_sats_for_this_gs,
                 }
             )
 
-        if (
-            not gs_visibility_updates
-            and self.initial_groundstation_configs
-            and self.simulation_time_sec % 10 < self.time_step_sec
-        ):
-            print(
-                "[CoreGS] No groundstation visibility data to send (or no GS configured)."
-            )
-
-        message = {
-            "type": "GS_VISIBILITY_UPDATE",
+        # Construct the final message to send to all groundstation services
+        message_to_all_gs_services = {
+            "type": "GS_SIM_UPDATE",
             "timestamp_sim_sec": round(self.simulation_time_sec, 2),
-            "groundstations_data": gs_visibility_updates,
+            "groundstations_data": gs_updates_payload_list,  # This list contains data for ALL groundstations
         }
-        message_json = json.dumps(message) + "\n"
+        message_json = json.dumps(message_to_all_gs_services) + "\n"
         encoded_message = message_json.encode()
 
+        # Broadcast to all connected groundstation service clients
         disconnected_writers = []
-        for writer in active_gs_writers:
+        for writer in active_gs_writers:  # This list was obtained under lock
             if writer.is_closing():
                 disconnected_writers.append(writer)
                 continue
             try:
                 writer.write(encoded_message)
                 await writer.drain()
-            except Exception:
+            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError) as e:
+                print(
+                    f"[CoreGS] Lost connection to a groundstation client: {e}. Marking for removal."
+                )
+                disconnected_writers.append(writer)
+            except Exception as e_send:
+                print(
+                    f"[CoreGS] Error sending update to a groundstation client: {e_send}"
+                )
                 disconnected_writers.append(writer)
 
         if disconnected_writers:
-            async with self.lock:
+            async with self.lock:  # Lock to modify self.groundstation_writers
                 for dw in disconnected_writers:
                     if dw in self.groundstation_writers:
                         self.groundstation_writers.remove(dw)
                     if not dw.is_closing():
                         try:
                             dw.close()
+                            # await dw.wait_closed() # wait_closed can hang; usually not awaited in broadcast loops
                         except:
-                            pass
+                            pass  # Ignore errors on close during cleanup
 
     async def broadcast_to_visualizers(self):
         active_visualizer_writers = []
@@ -507,12 +613,12 @@ class SimulationCore:
             "type": "VIS_UPDATE",
             "timestamp_sim_sec": round(self.simulation_time_sec, 2),
             "satellites": sat_data_for_vis,
-            "groundstations": gs_data_for_vis,  # NEW: Add groundstation data
+            "groundstations": gs_data_for_vis,
         }
-        message_json = json.dumps(message) + "\n"  # Newline for easier client parsing
+        message_json = json.dumps(message) + "\n"
         encoded_message = message_json.encode()
         disconnected_writers = []
-        for writer in active_visualizer_writers:  # Similar send logic as above
+        for writer in active_visualizer_writers:
             if writer.is_closing():
                 disconnected_writers.append(writer)
                 continue
@@ -521,7 +627,7 @@ class SimulationCore:
                 await writer.drain()
             except Exception:
                 disconnected_writers.append(writer)
-        if disconnected_writers:  # Same cleanup as above
+        if disconnected_writers:
             async with self.lock:
                 for dw in disconnected_writers:
                     if dw in self.visualizer_writers:
