@@ -13,14 +13,16 @@ from textual.widgets import Header, Footer, Static, Log, Input, Button, Label
 from textual.binding import Binding
 from textual.reactive import reactive
 
+from src.shared.constants import MU_EARTH_KM3_S2, EARTH_RADIUS_KM
+
 # --- Configuration ---
 PYTHON_EXECUTABLE = sys.executable
 LOG_DIR_TUI = "simulation_logs_tui"  # For any direct file logging if Popen was used (not primary here)
 
 CORE_SCRIPT = "simulation_core.py"
-VISUALIZER_SCRIPT = "visualizer_vpython.py"
-SATELLITE_SCRIPT = "satellite_service.py"
-GROUNDSTATION_SCRIPT = "groundstation_service.py"
+VISUALIZER_SCRIPT = "scripts/visualizer_vpython.py"
+SATELLITE_SCRIPT = "scripts/launch_satellite.py"
+GROUNDSTATION_SCRIPT = "scripts/launch_groundstation.py"
 
 CORE_CONTROL_HOST = "localhost"
 CORE_CONTROL_PORT = 60000
@@ -38,8 +40,6 @@ GS_USER_CMD_PORT_TUI = 7000
 GS_CORE_HOST_TUI = "localhost"  # For GS service to connect to core's update stream
 GS_CORE_PORT_TUI = 60002
 
-MU_EARTH_KM3_S2 = 398600.4418
-EARTH_RADIUS_KM = 6371.0
 MIN_ALTITUDE_KM = 700.0
 MAX_ALTITUDE_KM = 1500.0
 SPEED_VARIATION_FACTOR_MIN = 0.98

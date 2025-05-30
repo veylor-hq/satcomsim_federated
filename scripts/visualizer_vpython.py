@@ -337,7 +337,7 @@ def update_predicted_orbits_display():  # Uses user's confirmed prediction param
                 and "pos_actual_km" in sat_state
                 and "vel_actual_km_s" in sat_state
             ):
-                prediction_duration_sec = 90 * 120
+                prediction_duration_sec = 200 * 120
                 prediction_time_step_sec = 10
                 current_pos_vpy = sat_state["pos_actual_km"]
                 current_vel_vpy = sat_state["vel_actual_km_s"]

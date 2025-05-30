@@ -1,0 +1,172 @@
+/* tui_layout.css (Corrected Version) */
+Screen {
+    layout: vertical;
+    overflow-y: hidden;
+    /* Prevent screen itself from scrolling */
+    background: $surface;
+    color: $text;
+}
+
+#main_area {
+    layout: horizontal;
+    height: 1fr;
+    /* Takes remaining space after Header/Footer */
+    background: $panel;
+    padding: 1;
+    border: tall $background-darken-2;
+}
+
+/* General .column styling */
+.column {
+    width: 1fr;
+    /* Default: columns share width equally within their parent */
+    height: 100%;
+    /* Fill height of parent container */
+    padding: 0 1;
+    /* Padding left/right for content within column */
+    margin: 0 1;
+    /* Margin between columns */
+}
+
+/* Specific column widths */
+#col_primary_services {
+    /* Column for Core, GS, Vis logs */
+    width: 3fr;
+    /* Relative width */
+}
+
+#sat_logs_column {
+    /* Scrollable container for all satellite logs */
+    width: 4fr;
+    /* Relative width, will be wider */
+    height: 100%;
+    border: round $primary;
+    padding: 1;
+    overflow-y: auto;
+    /* This container will scroll */
+}
+
+#col_right_stack {
+    /* Parent container for the rightmost split panes */
+    width: 3fr;
+    layout: vertical;
+    /* Stacks its children (gs_interaction_pane and placeholder_pane) vertically */
+}
+
+/* Label styling */
+Label {
+    padding: 1 0 0 0;
+    /* Padding top */
+    width: 100%;
+    text-align: center;
+    text-style: bold underline;
+    color: $text-muted;
+    margin-bottom: 1;
+    /* Space below label */
+}
+
+/* Default Log widget style */
+Log {
+    height: 1fr;
+    /* Default to fill available vertical space in its parent */
+    border: round $primary-lighten-2;
+    margin-top: 0;
+    /* Good if Label above provides margin-bottom */
+    padding: 1;
+    background: $panel-darken-1;
+}
+
+/* Specific Log heights for primary services column */
+#core_log,
+#gs_log,
+#vis_log {
+    height: 1fr;
+    /* These will share the vertical space in their parent Vertical container */
+    min-height: 5;
+    /* Good for ensuring visibility */
+}
+
+/* Styling for dynamically added satellite log instances */
+.satellite_log_instance {
+    height: 8;
+    /* Fixed height for each satellite log pane */
+    min-height: 5;
+    margin-bottom: 1;
+    /* Space between stacked satellite logs */
+    /* It will inherit border, padding, background from the default Log style */
+}
+
+/* Styling for the panes within the rightmost column (#col_right_stack) */
+.right_pane_section {
+    /* Common styles for the two panes, if any beyond what their ID provides */
+    border: round $primary-background;
+    /* Example common border */
+    padding: 1;
+    overflow-y: auto;
+    /* Allow individual panes to scroll */
+}
+
+#gs_interaction_pane {
+    /* Top pane in the right column */
+    height: 3fr;
+    /* Takes 3 parts of the available height in #col_right_stack */
+    margin-bottom: 1;
+    /* Space between this and the placeholder_pane */
+    /* Inherits/uses .right_pane_section styles if class is applied in compose */
+}
+
+#gs_interaction_log {
+    /* The Log widget *within* #gs_interaction_pane */
+    height: 1fr;
+    /* Fill available space in its parent #gs_interaction_pane */
+    min-height: 10;
+    /* Ensure it has a decent minimum size */
+    /* Specific border/padding already handled by default Log style, unless overridden */
+}
+
+#placeholder_pane {
+    /* Bottom pane in the right column */
+    height: 0.2fr;
+    /* Takes 0.2 parts of height - will be much smaller than gs_interaction_pane */
+    min-height: 5;
+    /* Ensures it's at least 5 lines tall */
+    /* Inherits/uses .right_pane_section styles if class is applied in compose */
+}
+
+#info_placeholder_text {
+    /* Style for the Static text inside #placeholder_pane */
+    padding: 1;
+    text-align: center;
+    color: $text-muted;
+}
+
+/* Input field styling */
+Input {
+    margin: 1 0;
+    border: round $primary;
+}
+
+Input:focus {
+    border: round $secondary;
+}
+
+/* Button styling */
+Button {
+    width: 100%;
+    margin-top: 1;
+}
+
+/* Header and Footer styling */
+Header {
+    background: $primary-darken-2;
+    color: $text;
+    height: auto;
+    /* Shrink to content */
+}
+
+Footer {
+    background: $primary-darken-2;
+    color: $text;
+    height: auto;
+    /* Shrink to content */
+}

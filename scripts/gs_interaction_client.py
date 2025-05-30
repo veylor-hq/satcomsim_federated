@@ -1,4 +1,3 @@
-# gs_interaction_client.py
 import socket
 import argparse
 import time

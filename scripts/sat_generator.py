@@ -1,4 +1,3 @@
-# generate_and_add_sats.py
 import socket
 import json
 import random
@@ -7,18 +6,17 @@ import time
 import subprocess  # For launching satellite services
 import os
 import atexit  # For cleanup
+from src.shared.constants import MU_EARTH_KM3_S2, EARTH_RADIUS_KM
 
 # --- Configuration ---
 CORE_CONTROL_HOST = "localhost"
 CORE_CONTROL_PORT = 60000
-NUM_SATELLITES = 30  # You can reduce this for quicker testing initially
+NUM_SATELLITES = 30
 BASE_SATELLITE_PORT = 65450
 SATELLITE_HOST = "localhost"
 PYTHON_EXECUTABLE = "python"  # or "python3" or specific path if needed
 
 # Earth and Orbit Parameters
-MU_EARTH_KM3_S2 = 398600.4418
-EARTH_RADIUS_KM = 6371.0
 MIN_ALTITUDE_KM = 700.0
 MAX_ALTITUDE_KM = 1500.0  # Reduced max altitude for potentially more LEO satellites
 SPEED_VARIATION_FACTOR_MIN = 0.98
