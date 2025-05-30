@@ -6,6 +6,9 @@ SatComSim_Federated is a Python-based simulation environment designed to model a
 
 This project aims to provide a flexible platform for testing satellite communication protocols, visibility windows, groundstation operations, dynamic constellation management, and basic orbital mechanics visualization.
 
+### Small Note  
+Theoretically, Groundstation and Satellite services could be(or will be) moved to a separate repository, allowing for a more modular architecture. However, for simplicity and ease of development at current stage, they are currently included in the same repository as the core simulation logic.
+
 ## ✨ Features
 
 * **Federated Architecture:** Core simulation logic, satellites, and groundstations run as independent services.
