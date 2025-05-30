@@ -1,10 +1,10 @@
-# Federated Satellite Communication Simulator (SatComSim_Federated)
+# Federated Satellite Communication Simulator
 <a href="https://www.youtube.com/watch?v=M2PyWJDtF58" target="_blank"><img src="http://img.youtube.com/vi/M2PyWJDtF58/0.jpg"
 alt="M2PyWJDtF58" width="240" height="180" border="10" /></a>
 
 ## 🛰️ Overview
 
-SatComSim_Federated is a Python-based simulation environment designed to model and simulate a constellation of satellites, groundstations, and their interactions in Earth orbit. It features a federated architecture where different components of the simulation (core physics engine, individual satellite behaviors, groundstation logic, visualization) run as separate, cooperating services communicating over TCP/IP.
+Federated Satellite Communication Simulator (FSCC, SatComSim Federated) is a Python-based simulation environment designed to model and simulate a constellation of satellites, groundstations, and their interactions in Earth orbit. It features a federated architecture where different components of the simulation (core physics engine, individual satellite behaviors, groundstation logic, visualization) run as separate, cooperating services communicating over TCP/IP.
 
 This project aims to provide a flexible platform for testing satellite communication protocols, visibility windows, groundstation operations, dynamic constellation management, and basic orbital mechanics visualization.
 
