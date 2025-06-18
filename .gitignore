@@ -225,3 +225,4 @@ $RECYCLE.BIN/
 
 satellite_logs/
 simulation_logs_tui/
+.idea/
